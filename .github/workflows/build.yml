@@ -28,4 +28,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ModoMorte24h
-          path: target/ModoMorte24h-*.jar
+          path: target/ModoMorte24h.jar
