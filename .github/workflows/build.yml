@@ -25,7 +25,7 @@ jobs:
         run: mvn clean package --batch-mode
 
       - name: 📦 Publicar o arquivo .jar como artefato
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ModoMorte24h
           path: target/ModoMorte24h-*.jar
