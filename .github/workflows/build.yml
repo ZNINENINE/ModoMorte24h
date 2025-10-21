@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: 📥 Checkout do código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: ☕ Instalar Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -25,7 +25,7 @@ jobs:
         run: mvn clean package --batch-mode
 
       - name: 📦 Publicar o arquivo .jar como artefato
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ModoMorte24h
-          path: target/ModoMorte24h.jar
+          path: target/ModoMorte24h-*.jar
