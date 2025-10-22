@@ -1,3 +1,10 @@
+/*
+ * Plugin: ModoMorte Impede que o jogador reviva por um tempo configurável após a morte (padrão: 24 horas).
+ * Criado por: NineNine
+ * Servidor: Servidor dos Crocantes
+ * Compatível com: Spigot/Paper 1.21+ e Java 21
+ */
+
 package com.nin9.modomorte24h;
 
 import net.kyori.adventure.text.Component;
