@@ -1,7 +1,0 @@
-name: ModoMorte24h
-main: com.nin9.modomorte24h.ModoMorte24h
-version: 1.1
-api-version: 1.21
-commands:
-  trocarcamera:
-    description: Troca o jogador que você está assistindo.
