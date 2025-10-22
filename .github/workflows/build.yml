@@ -1,4 +1,4 @@
-name: Build ModoMorte24h Plugin
+name: Build ModoMorte99 Plugin
 
 on:
   push:
@@ -27,5 +27,5 @@ jobs:
       - name: 📦 Publicar o arquivo .jar como artefato
         uses: actions/upload-artifact@v4
         with:
-          name: ModoMorte24h
-          path: target/ModoMorte24h-*.jar
+          name: ModoMorte99
+          path: target/ModoMorte99-*.jar
