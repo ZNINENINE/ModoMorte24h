@@ -12,9 +12,9 @@ import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-
 import java.util.*;
 import java.util.stream.Collectors;
+import org.bukkit.Location;
 
 public class ModoMorte24h extends JavaPlugin implements Listener {
 
