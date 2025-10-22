@@ -2,6 +2,12 @@ name: Build ModoMorte24h Plugin
 
 on:
   push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -14,11 +20,6 @@ on:
           distribution: 'temurin'
           java-version: '21'
           cache: 'maven'
-      - name: Clean local Maven repository cache
-        run: rm -rf ~/.m2/repository/io/papermc
-
-      - name: Build with Maven
-        run: mvn clean package -DskipTests
 
       - name: 🧩 Compilar o plugin com Maven
         run: mvn clean package --batch-mode
