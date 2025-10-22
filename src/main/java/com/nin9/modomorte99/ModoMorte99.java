@@ -189,7 +189,7 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
             return true;
         }
 
-        // === NOVO COMANDO /TROCAR ===
+        // === COMANDO /TROCAR ===
         if (command.getName().equalsIgnoreCase("trocar")) {
             if (!(sender instanceof Player p)) {
                 sender.sendMessage("§cApenas jogadores podem usar este comando.");
@@ -201,51 +201,39 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
                 return true;
             }
 
-            // === NOVO COMANDO /TROCAR ===
-            if (command.getName().equalsIgnoreCase("trocar")) {
-                if (!(sender instanceof Player p)) {
-                    sender.sendMessage("§cApenas jogadores podem usar este comando.");
-                    return true;
-                }
+            // Lista de jogadores vivos
+            List<Player> vivos = Bukkit.getOnlinePlayers().stream()
+                    .filter(alvo -> alvo.getGameMode() == GameMode.SURVIVAL)
+                    .collect(java.util.stream.Collectors.toList());
 
-                if (!deathTimes.containsKey(p.getUniqueId()) || p.getGameMode() != GameMode.SPECTATOR) {
-                    p.sendMessage(color("&cVocê só pode usar este comando enquanto estiver morto."));
-                    return true;
-                }
-
-                // Lista de jogadores vivos (corrigido)
-                List<Player> vivos = Bukkit.getOnlinePlayers().stream()
-                        .filter(alvo -> alvo.getGameMode() == GameMode.SURVIVAL)
-                        .collect(java.util.stream.Collectors.toList());
-
-                if (vivos.isEmpty()) {
-                    p.sendMessage(color(cfg.getString("mensagens.morteSemAlvo",
-                            "&cNenhum jogador vivo disponível para assistir.")));
-                    return true;
-                }
-
-                Player alvoNovo = null;
-
-                if (args.length == 1) {
-                    alvoNovo = Bukkit.getPlayerExact(args[0]);
-                    if (alvoNovo == null || alvoNovo.getGameMode() != GameMode.SURVIVAL) {
-                        p.sendMessage(color("&cJogador inválido ou não está vivo."));
-                        return true;
-                    }
-                } else {
-                    // Modo circular — alterna para o próximo jogador vivo
-                    int indexAtual = -1;
-                    if (p.getSpectatorTarget() instanceof Player atual) {
-                        indexAtual = vivos.indexOf(atual);
-                    }
-                    int proximoIndex = (indexAtual + 1) % vivos.size();
-                    alvoNovo = vivos.get(proximoIndex);
-               }
-
-                p.setSpectatorTarget(alvoNovo);
-                p.sendMessage(color("&eAgora você está assistindo &f" + alvoNovo.getName() + "&e."));
+            if (vivos.isEmpty()) {
+                p.sendMessage(color(cfg.getString("mensagens.morteSemAlvo",
+                        "&cNenhum jogador vivo disponível para assistir.")));
                 return true;
             }
+
+            Player alvoNovo = null;
+
+            if (args.length == 1) {
+                alvoNovo = Bukkit.getPlayerExact(args[0]);
+                if (alvoNovo == null || alvoNovo.getGameMode() != GameMode.SURVIVAL) {
+                    p.sendMessage(color("&cJogador inválido ou não está vivo."));
+                    return true;
+                }
+            } else {
+                // Modo circular — alterna para o próximo jogador vivo
+                int indexAtual = -1;
+                if (p.getSpectatorTarget() instanceof Player atual) {
+                    indexAtual = vivos.indexOf(atual);
+                }
+                int proximoIndex = (indexAtual + 1) % vivos.size();
+                alvoNovo = vivos.get(proximoIndex);
+            }
+
+            p.setSpectatorTarget(alvoNovo);
+            p.sendMessage(color("&eAgora você está assistindo &f" + alvoNovo.getName() + "&e."));
+            return true;
+        }
 
         return false;
     }
@@ -255,3 +243,4 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
         return msg.replace("&", "§");
     }
 }
+
