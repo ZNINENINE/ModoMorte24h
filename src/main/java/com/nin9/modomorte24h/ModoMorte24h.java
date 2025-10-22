@@ -1,5 +1,6 @@
 package com.nin9.modomorte24h;
 
+import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -26,14 +27,12 @@ public class ModoMorte24h extends JavaPlugin implements Listener {
         long horas = getConfig().getLong("tempoPuniçãoHoras", 24);
         punishmentMillis = horas * 60 * 60 * 1000;
 
-        final Player fPlayer = event.getEntity();
-        final Player fTarget = getNearestPlayer(fPlayer);
-        final long punishmentMillis = getConfig().getLong("tempoPuniçãoHoras", 24) * 60 * 60 * 1000;
-
+        // Tarefa repetitiva para verificar o tempo restante de punição
         new BukkitRunnable() {
             @Override
             public void run() {
                 long now = System.currentTimeMillis();
+
                 for (Player p : Bukkit.getOnlinePlayers()) {
                     if (deathTimes.containsKey(p.getUniqueId())) {
                         long end = deathTimes.get(p.getUniqueId());
@@ -43,52 +42,62 @@ public class ModoMorte24h extends JavaPlugin implements Listener {
                             long restante = end - now;
                             long h = restante / 3600000;
                             long m = (restante % 3600000) / 60000;
-                            fPlayer.sendActionBar("Renascendo em " + fRemainingTime + "h" + "m");
+
+                            // Adventure API (Paper 1.19+)
+                            p.sendActionBar(Component.text("§cRenascendo em §f" + h + "h " + m + "m"));
                         }
                     }
                 }
             }
         }.runTaskTimer(this, 0L, 20L);
+
+        getLogger().info("ModoMorte24h habilitado com punição de " + horas + " hora(s).");
     }
 
-   @EventHandler
-public void onPlayerDeath(PlayerDeathEvent event) {
-    final Player player = event.getEntity();
+    @EventHandler
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        final Player player = event.getEntity();
 
-    // Procura o player mais próximo
-    Player nearest = null;
-    double distance = Double.MAX_VALUE;
-    for (Player other : Bukkit.getOnlinePlayers()) {
-        if (!other.equals(player) && other.getGameMode() == GameMode.SURVIVAL) {
-            double dist = player.getLocation().distance(other.getLocation());
-            if (dist < distance) {
-                distance = dist;
-                nearest = other;
+        // Define o horário de término da punição
+        final long endTime = System.currentTimeMillis() + punishmentMillis;
+        deathTimes.put(player.getUniqueId(), endTime);
+
+        // Coloca o jogador em modo espectador e segue o mais próximo
+        Bukkit.getScheduler().runTaskLater(this, () -> {
+            player.setGameMode(GameMode.SPECTATOR);
+
+            Player nearest = getNearestPlayer(player);
+            if (nearest != null) {
+                player.setSpectatorTarget(nearest);
+                player.sendMessage(Component.text("§7Você morreu! Agora está assistindo §a" + nearest.getName() + "§7."));
+            } else {
+                player.sendMessage(Component.text("§7Você morreu, mas não há jogadores vivos para assistir."));
+            }
+        }, 1L);
+    }
+
+    private Player getNearestPlayer(Player source) {
+        Player nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (!p.equals(source) && p.getGameMode() == GameMode.SURVIVAL) {
+                double distance = p.getLocation().distance(source.getLocation());
+                if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nearest = p;
+                }
             }
         }
+        return nearest;
     }
-
-    final Player finalNearest = nearest;
-    final long endTime = System.currentTimeMillis() + punishmentMillis;
-    deathTimes.put(player.getUniqueId(), endTime);
-
-    Bukkit.getScheduler().runTaskLater(this, () -> {
-        player.setGameMode(GameMode.SPECTATOR);
-        if (finalNearest != null) {
-            player.setSpectatorTarget(finalNearest);
-            player.sendMessage("§7Você morreu! Agora está assistindo §a" + finalNearest.getName() + "§7.");
-        } else {
-            player.sendMessage("§7Você morreu, mas não há jogadores vivos para assistir.");
-        }
-    }, 1L);
-}
-
 
     private void reviver(Player p) {
         deathTimes.remove(p.getUniqueId());
         p.setGameMode(GameMode.SURVIVAL);
+
         Location spawn = p.getWorld().getSpawnLocation();
         p.teleport(spawn);
-        p.sendMessage("§aSua punição terminou! Você renasceu e pode jogar novamente.");
+        p.sendMessage(Component.text("§aSua punição terminou! Você renasceu e pode jogar novamente."));
     }
 }
