@@ -1,27 +1,30 @@
-name: Build Plugin
+name: Build ModoMorte24h Plugin
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: 📥 Checkout do código
         uses: actions/checkout@v3
 
-      - name: Setup Java
+      - name: ☕ Instalar Java 21
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: 21
-
-      - name: Clean local Maven cache (Paper)
+          java-version: '21'
+          cache: 'maven'
+      - name: Clean local Maven repository cache
         run: rm -rf ~/.m2/repository/io/papermc
 
       - name: Build with Maven
         run: mvn clean package -DskipTests
+
+      - name: 🧩 Compilar o plugin com Maven
+        run: mvn clean package --batch-mode
+
+      - name: 📦 Publicar o arquivo .jar como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: ModoMorte24h
+          path: target/ModoMorte24h-*.jar
