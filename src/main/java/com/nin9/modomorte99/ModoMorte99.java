@@ -20,8 +20,9 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -44,7 +45,7 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
         long horas = cfg.getLong("tempoPunicaoHoras", 24);
         punishmentMillis = horas * 60 * 60 * 1000;
 
-        // Tarefa para atualizar barra de ação com tempo restante
+        // Tarefa repetitiva para verificar o tempo restante de punição
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -77,7 +78,6 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         final Player player = event.getEntity();
-
         final long endTime = System.currentTimeMillis() + punishmentMillis;
         deathTimes.put(player.getUniqueId(), endTime);
 
@@ -87,16 +87,45 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
             Player nearest = getNearestPlayer(player);
             if (nearest != null) {
                 player.setSpectatorTarget(nearest);
-                player.sendMessage(Component.text(color(getMsg("mensagens.morteAssistindo")
+                player.sendMessage(Component.text(color(cfg.getString("mensagens.morteAssistindo")
                         .replace("%jogador%", nearest.getName()))));
             } else {
-                player.sendMessage(Component.text(color(getMsg("mensagens.morteSemAlvo"))));
+                // Nenhum jogador vivo — teleportar ao spawn
+                Location spawn = player.getWorld().getSpawnLocation();
+                player.teleport(spawn);
+                player.sendMessage(Component.text(color(cfg.getString("mensagens.morteSemAlvo"))));
             }
         }, 1L);
 
-        Bukkit.broadcast(Component.text(color(getMsg("mensagens.morteGlobal")
+        Bukkit.broadcast(Component.text(color(cfg.getString("mensagens.morteGlobal")
                 .replace("%jogador%", player.getName())
                 .replace("%horas%", String.valueOf(punishmentMillis / 3_600_000)))));
+    }
+
+    // Impede que o jogador morto troque de visão ou use comandos
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onSpectatorTeleport(PlayerTeleportEvent event) {
+        Player p = event.getPlayer();
+        if (p.getGameMode() == GameMode.SPECTATOR && deathTimes.containsKey(p.getUniqueId())) {
+            if (event.getCause() == TeleportCause.SPECTATE || event.getCause() == TeleportCause.PLUGIN) {
+                event.setCancelled(true);
+                p.sendActionBar(Component.text(color(cfg.getString("mensagens.bloqueioVisao",
+                        "&cVocê não pode trocar de visão enquanto estiver morto."))));
+            }
+        }
+    }
+
+    @EventHandler
+    public void onCommandWhileDead(PlayerCommandPreprocessEvent event) {
+        Player p = event.getPlayer();
+        if (p.getGameMode() == GameMode.SPECTATOR && deathTimes.containsKey(p.getUniqueId())) {
+            String msg = event.getMessage().toLowerCase();
+            if (msg.startsWith("/tp") || msg.startsWith("/home") || msg.startsWith("/spawn")) {
+                event.setCancelled(true);
+                p.sendMessage(Component.text(color(cfg.getString("mensagens.bloqueioComando",
+                        "&cVocê não pode usar comandos enquanto estiver morto."))));
+            }
+        }
     }
 
     private Player getNearestPlayer(Player source) {
@@ -123,39 +152,13 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
         p.teleport(spawn);
 
         if (manual) {
-            p.sendMessage(Component.text(color(getMsg("mensagens.reviverManual"))));
+            p.sendMessage(Component.text(color(cfg.getString("mensagens.reviverManual"))));
         } else {
-            p.sendMessage(Component.text(color(getMsg("mensagens.reviverAuto"))));
+            p.sendMessage(Component.text(color(cfg.getString("mensagens.reviverAuto"))));
         }
 
-        Bukkit.broadcast(Component.text(color(getMsg("mensagens.reviverGlobal")
+        Bukkit.broadcast(Component.text(color(cfg.getString("mensagens.reviverGlobal")
                 .replace("%jogador%", p.getName()))));
-    }
-
-    // Bloqueia tentativa de troca de visão ou teleporte enquanto morto
-    @EventHandler(priority = EventPriority.HIGH)
-    public void onSpectatorTeleport(PlayerTeleportEvent event) {
-        Player p = event.getPlayer();
-        if (p.getGameMode() == GameMode.SPECTATOR && deathTimes.containsKey(p.getUniqueId())) {
-            if (event.getCause() == PlayerTeleportEvent.TeleportCause.SPECTATE
-                    || event.getCause() == PlayerTeleportEvent.TeleportCause.PLUGIN) {
-                event.setCancelled(true);
-                p.sendActionBar(Component.text(color(getMsg("mensagens.bloqueioVisao"))));
-            }
-        }
-    }
-
-    // Bloqueia comandos enquanto o jogador está morto
-    @EventHandler
-    public void onCommandWhileDead(PlayerCommandPreprocessEvent event) {
-        Player p = event.getPlayer();
-        if (p.getGameMode() == GameMode.SPECTATOR && deathTimes.containsKey(p.getUniqueId())) {
-            String msg = event.getMessage().toLowerCase();
-            if (msg.startsWith("/tp") || msg.startsWith("/tpa") || msg.startsWith("/home")) {
-                event.setCancelled(true);
-                p.sendMessage(Component.text(color(getMsg("mensagens.bloqueioComando"))));
-            }
-        }
     }
 
     @Override
@@ -188,8 +191,5 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
         if (msg == null) return "";
         return msg.replace("&", "§");
     }
-
-    private String getMsg(String path) {
-        return cfg.getString(path, "&cMensagem não configurada: " + path);
-    }
 }
+
