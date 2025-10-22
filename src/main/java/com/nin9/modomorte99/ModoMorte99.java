@@ -14,6 +14,7 @@ import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -28,13 +29,16 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
 
     private final HashMap<UUID, Long> deathTimes = new HashMap<>();
     private long punishmentMillis;
+    private FileConfiguration cfg;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        cfg = getConfig();
+
         Bukkit.getPluginManager().registerEvents(this, this);
 
-        long horas = getConfig().getLong("tempoPunicaoHoras", 24);
+        long horas = cfg.getLong("tempoPunicaoHoras", 24);
         punishmentMillis = horas * 60 * 60 * 1000;
 
         // Tarefa repetitiva para verificar o tempo restante de punição
@@ -47,12 +51,17 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
                     if (deathTimes.containsKey(p.getUniqueId())) {
                         long end = deathTimes.get(p.getUniqueId());
                         if (now >= end) {
-                            reviver(p);
+                            reviver(p, false);
                         } else {
                             long restante = end - now;
                             long h = restante / 3_600_000;
                             long m = (restante % 3_600_000) / 60_000;
-                            p.sendActionBar(Component.text("§cRenascendo em §f" + h + "h " + m + "m"));
+
+                            String msg = color(cfg.getString("mensagens.tempoRestante",
+                                    "&cRenascendo em &f%h%h %m%m"))
+                                    .replace("%h%", String.valueOf(h))
+                                    .replace("%m%", String.valueOf(m));
+                            p.sendActionBar(Component.text(msg));
                         }
                     }
                 }
@@ -62,16 +71,10 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
         getLogger().info("ModoMorte99 habilitado com punição de " + horas + " hora(s).");
     }
 
-    @Override
-    public void onDisable() {
-        getLogger().info("ModoMorte99 desativado.");
-    }
-
     @EventHandler
     public void onPlayerDeath(PlayerDeathEvent event) {
         final Player player = event.getEntity();
 
-        // Define o horário de término da punição
         final long endTime = System.currentTimeMillis() + punishmentMillis;
         deathTimes.put(player.getUniqueId(), endTime);
 
@@ -81,13 +84,16 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
             Player nearest = getNearestPlayer(player);
             if (nearest != null) {
                 player.setSpectatorTarget(nearest);
-                player.sendMessage(Component.text("§7Você morreu! Agora está assistindo §a" + nearest.getName() + "§7."));
+                player.sendMessage(Component.text(color(cfg.getString("mensagens.morteAssistindo")
+                        .replace("%jogador%", nearest.getName()))));
             } else {
-                player.sendMessage(Component.text("§7Você morreu, mas não há jogadores vivos para assistir."));
+                player.sendMessage(Component.text(color(cfg.getString("mensagens.morteSemAlvo"))));
             }
         }, 1L);
 
-        Bukkit.broadcast(Component.text("§c" + player.getName() + " morreu e ficará punido por 24h!"));
+        Bukkit.broadcast(Component.text(color(cfg.getString("mensagens.morteGlobal")
+                .replace("%jogador%", player.getName())
+                .replace("%horas%", String.valueOf(punishmentMillis / 3_600_000)))));
     }
 
     private Player getNearestPlayer(Player source) {
@@ -106,40 +112,51 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
         return nearest;
     }
 
-    private void reviver(Player p) {
+    private void reviver(Player p, boolean manual) {
         deathTimes.remove(p.getUniqueId());
         p.setGameMode(GameMode.SURVIVAL);
 
         Location spawn = p.getWorld().getSpawnLocation();
         p.teleport(spawn);
-        p.sendMessage(Component.text("§aSua punição terminou! Você renasceu e pode jogar novamente."));
-        Bukkit.broadcast(Component.text("§a" + p.getName() + " foi revivido e está de volta ao jogo!"));
+
+        if (manual) {
+            p.sendMessage(Component.text(color(cfg.getString("mensagens.reviverManual"))));
+        } else {
+            p.sendMessage(Component.text(color(cfg.getString("mensagens.reviverAuto"))));
+        }
+
+        Bukkit.broadcast(Component.text(color(cfg.getString("mensagens.reviverGlobal")
+                .replace("%jogador%", p.getName()))));
     }
 
-    // ===== Comando /reviver (somente admins) =====
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (command.getName().equalsIgnoreCase("reviver")) {
             if (!sender.hasPermission("modomorte.reviver")) {
-                sender.sendMessage("§cVocê não tem permissão para usar este comando.");
+                sender.sendMessage(color("&cVocê não tem permissão para usar este comando."));
                 return true;
             }
 
             if (args.length != 1) {
-                sender.sendMessage("§eUso correto: /reviver <jogador>");
+                sender.sendMessage(color("&eUso correto: /reviver <jogador>"));
                 return true;
             }
 
             Player alvo = Bukkit.getPlayerExact(args[0]);
             if (alvo == null) {
-                sender.sendMessage("§cJogador não encontrado ou offline.");
+                sender.sendMessage(color("&cJogador não encontrado ou offline."));
                 return true;
             }
 
-            reviver(alvo);
-            sender.sendMessage("§aVocê reviver o jogador §f" + alvo.getName() + "§a manualmente.");
+            reviver(alvo, true);
+            sender.sendMessage(color("&aVocê reviveu o jogador &f" + alvo.getName() + "&a manualmente."));
             return true;
         }
         return false;
+    }
+
+    private String color(String msg) {
+        if (msg == null) return "";
+        return msg.replace("&", "§");
     }
 }
