@@ -2,7 +2,14 @@ name: ModoMorte99
 main: com.nin9.modomorte99.ModoMorte99
 version: 1.2.1
 api-version: 1.21
-author: Nin9
+author: NineNine
+description: Impede que jogadores revivam antes do tempo configurado. Servidor dos Crocantes.
 commands:
-  trocarcamera:
-    description: Troca o jogador que está sendo observado.
+  reviver:
+    description: Revive manualmente um jogador punido.
+    usage: /reviver <jogador>
+    permission: modomorte.reviver
+permissions:
+  modomorte.reviver:
+    description: Permite reviver jogadores manualmente.
+    default: op
