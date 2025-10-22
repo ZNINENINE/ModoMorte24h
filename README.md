@@ -1,4 +1,4 @@
-ModoMorte24h - Plugin source for Paper 1.21.x
+ModoMorte99 - Plugin source for Paper 1.21.x
 =============================================
 
 Descrição
