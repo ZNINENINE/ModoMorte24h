@@ -26,6 +26,10 @@ public class ModoMorte24h extends JavaPlugin implements Listener {
         long horas = getConfig().getLong("tempoPuniçãoHoras", 24);
         punishmentMillis = horas * 60 * 60 * 1000;
 
+        Player player = event.getEntity();
+        Player target = getNearestPlayer(player);
+        long remainingTime = configTime;
+
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -39,12 +43,12 @@ public class ModoMorte24h extends JavaPlugin implements Listener {
                             long restante = end - now;
                             long h = restante / 3600000;
                             long m = (restante % 3600000) / 60000;
-                            p.sendActionBar("§eTempo restante para reviver: §c" + h + "h " + m + "m");
+                            player.sendActionBar("Renascendo em " + remainingTime + "h" + "m");
                         }
                     }
                 }
             }
-        }.runTaskTimer(this, 0L, 100L);
+        }.runTaskTimer(this, 0L, 20L);
     }
 
     @EventHandler
