@@ -6,7 +6,7 @@
 
     <groupId>com.nin9</groupId>
     <artifactId>ModoMorte24h</artifactId>
-    <version>1.2</version>
+    <version>1.2.1</version>
     <packaging>jar</packaging>
 
     <name>ModoMorte24h</name>
@@ -14,8 +14,8 @@
 
     <properties>
         <java.version>17</java.version>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
     </properties>
 
     <repositories>
@@ -33,36 +33,4 @@
             <scope>provided</scope>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <!-- Compiler plugin -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.11.0</version>
-                <configuration>
-                    <source>${maven.compiler.source}</source>
-                    <target>${maven.compiler.target}</target>
-                </configuration>
-            </plugin>
-
-            <!-- Shade to create an uber-jar if needed (keeps dependencies minimal) -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.0</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals><goal>shade</goal></goals>
-                        <configuration>
-                            <relocations/>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
 </project>
