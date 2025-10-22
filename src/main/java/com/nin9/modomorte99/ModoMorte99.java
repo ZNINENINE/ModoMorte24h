@@ -1,6 +1,7 @@
 /*
  * Plugin: ModoMorte99
  * Função: Impede que o jogador reviva por um tempo configurável após morrer (padrão: 24 horas).
+ * Adiciona o comando /trocar para alternar a visão entre jogadores vivos enquanto estiver morto.
  * Criado por: NineNine
  * Servidor: Servidor dos Crocantes
  * Compatível com: Spigot/Paper 1.21+ e Java 21
@@ -27,6 +28,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 
 public final class ModoMorte99 extends JavaPlugin implements Listener {
@@ -102,7 +104,7 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
                 .replace("%horas%", String.valueOf(punishmentMillis / 3_600_000)))));
     }
 
-    // Impede que o jogador morto troque de visão ou use comandos
+    // Impede que o jogador morto troque de visão ou use comandos proibidos
     @EventHandler(priority = EventPriority.HIGH)
     public void onSpectatorTeleport(PlayerTeleportEvent event) {
         Player p = event.getPlayer();
@@ -110,7 +112,7 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
             if (event.getCause() == TeleportCause.SPECTATE || event.getCause() == TeleportCause.PLUGIN) {
                 event.setCancelled(true);
                 p.sendActionBar(Component.text(color(cfg.getString("mensagens.bloqueioVisao",
-                        "&cVocê não pode trocar de visão enquanto estiver morto."))));
+                        "&cVocê não pode trocar de visão clicando. Use /trocar para alternar entre jogadores."))));
             }
         }
     }
@@ -163,6 +165,8 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+
+        // === COMANDO /REVIVER ===
         if (command.getName().equalsIgnoreCase("reviver")) {
             if (!sender.hasPermission("modomorte.reviver")) {
                 sender.sendMessage(color("&cVocê não tem permissão para usar este comando."));
@@ -184,6 +188,53 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
             sender.sendMessage(color("&aVocê reviveu o jogador &f" + alvo.getName() + "&a manualmente."));
             return true;
         }
+
+        // === NOVO COMANDO /TROCAR ===
+        if (command.getName().equalsIgnoreCase("trocar")) {
+            if (!(sender instanceof Player p)) {
+                sender.sendMessage("§cApenas jogadores podem usar este comando.");
+                return true;
+            }
+
+            if (!deathTimes.containsKey(p.getUniqueId()) || p.getGameMode() != GameMode.SPECTATOR) {
+                p.sendMessage(color("&cVocê só pode usar este comando enquanto estiver morto."));
+                return true;
+            }
+
+            // Lista de jogadores vivos
+            List<Player> vivos = Bukkit.getOnlinePlayers().stream()
+                    .filter(alvo -> alvo.getGameMode() == GameMode.SURVIVAL)
+                    .toList();
+
+            if (vivos.isEmpty()) {
+                p.sendMessage(color(cfg.getString("mensagens.morteSemAlvo",
+                        "&cNenhum jogador vivo disponível para assistir.")));
+                return true;
+            }
+
+            Player alvoNovo = null;
+
+            if (args.length == 1) {
+                alvoNovo = Bukkit.getPlayerExact(args[0]);
+                if (alvoNovo == null || alvoNovo.getGameMode() != GameMode.SURVIVAL) {
+                    p.sendMessage(color("&cJogador inválido ou não está vivo."));
+                    return true;
+                }
+            } else {
+                // Modo circular — alterna para o próximo jogador vivo
+                int indexAtual = -1;
+                if (p.getSpectatorTarget() instanceof Player atual) {
+                    indexAtual = vivos.indexOf(atual);
+                }
+                int proximoIndex = (indexAtual + 1) % vivos.size();
+                alvoNovo = vivos.get(proximoIndex);
+            }
+
+            p.setSpectatorTarget(alvoNovo);
+            p.sendMessage(color("&eAgora você está assistindo &f" + alvoNovo.getName() + "&e."));
+            return true;
+        }
+
         return false;
     }
 
@@ -192,4 +243,3 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
         return msg.replace("&", "§");
     }
 }
-
