@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.nin9</groupId>
-    <artifactId>99ModoMorte</artifactId>
+    <artifactId>ModoMorte99</artifactId>
     <version>1.2.1</version>
     <packaging>jar</packaging>
 
-    <name>99ModoMorte</name>
+    <name>ModoMorte99</name>
     <description>Plugin que coloca o jogador em modo espectador por tempo configurável após a morte</description>
 
     <properties>
