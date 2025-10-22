@@ -247,7 +247,6 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
                 return true;
             }
 
-
         return false;
     }
 
