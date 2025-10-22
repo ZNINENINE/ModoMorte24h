@@ -5,7 +5,7 @@
  * Compatível com: Spigot/Paper 1.21+ e Java 21
  */
 
-package com.nin9.modomorte24h;
+package com.nin9.modomorte99;
 
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -21,7 +21,7 @@ import org.bukkit.scheduler.BukkitRunnable;
 import java.util.HashMap;
 import java.util.UUID;
 
-public class ModoMorte24h extends JavaPlugin implements Listener {
+public class ModoMorte99 extends JavaPlugin implements Listener {
 
     private final HashMap<UUID, Long> deathTimes = new HashMap<>();
     private long punishmentMillis;
@@ -58,7 +58,7 @@ public class ModoMorte24h extends JavaPlugin implements Listener {
             }
         }.runTaskTimer(this, 0L, 20L);
 
-        getLogger().info("ModoMorte24h habilitado com punição de " + horas + " hora(s).");
+        getLogger().info("ModoMorte99 habilitado com punição de " + horas + " hora(s).");
     }
 
     @EventHandler
