@@ -1,7 +1,0 @@
-# Tempo de punição em horas
-tempoPuniçãoHoras: 24
-
-# Mensagens
-mensagens:
-  morte: "§7Você morreu! Agora está assistindo §a%player%§7 por %horas% horas."
-  revive: "§aSua punição terminou! Você renasceu e pode jogar novamente."
