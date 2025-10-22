@@ -17,8 +17,11 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -41,7 +44,7 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
         long horas = cfg.getLong("tempoPunicaoHoras", 24);
         punishmentMillis = horas * 60 * 60 * 1000;
 
-        // Tarefa repetitiva para verificar o tempo restante de punição
+        // Tarefa para atualizar barra de ação com tempo restante
         new BukkitRunnable() {
             @Override
             public void run() {
@@ -84,14 +87,14 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
             Player nearest = getNearestPlayer(player);
             if (nearest != null) {
                 player.setSpectatorTarget(nearest);
-                player.sendMessage(Component.text(color(cfg.getString("mensagens.morteAssistindo")
+                player.sendMessage(Component.text(color(getMsg("mensagens.morteAssistindo")
                         .replace("%jogador%", nearest.getName()))));
             } else {
-                player.sendMessage(Component.text(color(cfg.getString("mensagens.morteSemAlvo"))));
+                player.sendMessage(Component.text(color(getMsg("mensagens.morteSemAlvo"))));
             }
         }, 1L);
 
-        Bukkit.broadcast(Component.text(color(cfg.getString("mensagens.morteGlobal")
+        Bukkit.broadcast(Component.text(color(getMsg("mensagens.morteGlobal")
                 .replace("%jogador%", player.getName())
                 .replace("%horas%", String.valueOf(punishmentMillis / 3_600_000)))));
     }
@@ -120,13 +123,39 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
         p.teleport(spawn);
 
         if (manual) {
-            p.sendMessage(Component.text(color(cfg.getString("mensagens.reviverManual"))));
+            p.sendMessage(Component.text(color(getMsg("mensagens.reviverManual"))));
         } else {
-            p.sendMessage(Component.text(color(cfg.getString("mensagens.reviverAuto"))));
+            p.sendMessage(Component.text(color(getMsg("mensagens.reviverAuto"))));
         }
 
-        Bukkit.broadcast(Component.text(color(cfg.getString("mensagens.reviverGlobal")
+        Bukkit.broadcast(Component.text(color(getMsg("mensagens.reviverGlobal")
                 .replace("%jogador%", p.getName()))));
+    }
+
+    // Bloqueia tentativa de troca de visão ou teleporte enquanto morto
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onSpectatorTeleport(PlayerTeleportEvent event) {
+        Player p = event.getPlayer();
+        if (p.getGameMode() == GameMode.SPECTATOR && deathTimes.containsKey(p.getUniqueId())) {
+            if (event.getCause() == PlayerTeleportEvent.TeleportCause.SPECTATE
+                    || event.getCause() == PlayerTeleportEvent.TeleportCause.PLUGIN) {
+                event.setCancelled(true);
+                p.sendActionBar(Component.text(color(getMsg("mensagens.bloqueioVisao"))));
+            }
+        }
+    }
+
+    // Bloqueia comandos enquanto o jogador está morto
+    @EventHandler
+    public void onCommandWhileDead(PlayerCommandPreprocessEvent event) {
+        Player p = event.getPlayer();
+        if (p.getGameMode() == GameMode.SPECTATOR && deathTimes.containsKey(p.getUniqueId())) {
+            String msg = event.getMessage().toLowerCase();
+            if (msg.startsWith("/tp") || msg.startsWith("/tpa") || msg.startsWith("/home")) {
+                event.setCancelled(true);
+                p.sendMessage(Component.text(color(getMsg("mensagens.bloqueioComando"))));
+            }
+        }
     }
 
     @Override
@@ -158,5 +187,9 @@ public final class ModoMorte99 extends JavaPlugin implements Listener {
     private String color(String msg) {
         if (msg == null) return "";
         return msg.replace("&", "§");
+    }
+
+    private String getMsg(String path) {
+        return cfg.getString(path, "&cMensagem não configurada: " + path);
     }
 }
