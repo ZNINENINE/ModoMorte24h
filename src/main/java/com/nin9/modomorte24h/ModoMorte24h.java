@@ -26,9 +26,9 @@ public class ModoMorte24h extends JavaPlugin implements Listener {
         long horas = getConfig().getLong("tempoPuniçãoHoras", 24);
         punishmentMillis = horas * 60 * 60 * 1000;
 
-        Player player = event.getEntity();
-        Player target = getNearestPlayer(player);
-        long remainingTime = configTime;
+        final Player fPlayer = event.getEntity();
+        final Player fTarget = getNearestPlayer(fPlayer);
+        final long punishmentMillis = getConfig().getLong("tempoPuniçãoHoras", 24) * 60 * 60 * 1000;
 
         new BukkitRunnable() {
             @Override
@@ -43,7 +43,7 @@ public class ModoMorte24h extends JavaPlugin implements Listener {
                             long restante = end - now;
                             long h = restante / 3600000;
                             long m = (restante % 3600000) / 60000;
-                            player.sendActionBar("Renascendo em " + remainingTime + "h" + "m");
+                            fPlayer.sendActionBar("Renascendo em " + fRemainingTime + "h" + "m");
                         }
                     }
                 }
@@ -51,34 +51,38 @@ public class ModoMorte24h extends JavaPlugin implements Listener {
         }.runTaskTimer(this, 0L, 20L);
     }
 
-    @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
-        Player player = event.getEntity();
-        Player nearest = null;
-        double distance = Double.MAX_VALUE;
+   @EventHandler
+public void onPlayerDeath(PlayerDeathEvent event) {
+    final Player player = event.getEntity();
 
-        for (Player other : Bukkit.getOnlinePlayers()) {
-            if (!other.equals(player) && other.getGameMode() == GameMode.SURVIVAL) {
-                double dist = player.getLocation().distance(other.getLocation());
-                if (dist < distance) {
-                    distance = dist;
-                    nearest = other;
-                }
+    // Procura o player mais próximo
+    Player nearest = null;
+    double distance = Double.MAX_VALUE;
+    for (Player other : Bukkit.getOnlinePlayers()) {
+        if (!other.equals(player) && other.getGameMode() == GameMode.SURVIVAL) {
+            double dist = player.getLocation().distance(other.getLocation());
+            if (dist < distance) {
+                distance = dist;
+                nearest = other;
             }
         }
-
-        deathTimes.put(player.getUniqueId(), System.currentTimeMillis() + punishmentMillis);
-
-        Bukkit.getScheduler().runTaskLater(this, () -> {
-            player.setGameMode(GameMode.SPECTATOR);
-            if (nearest != null) {
-                player.setSpectatorTarget(nearest);
-                player.sendMessage("§7Você morreu! Agora está assistindo §a" + nearest.getName() + "§7.");
-            } else {
-                player.sendMessage("§7Você morreu, mas não há jogadores vivos para assistir.");
-            }
-        }, 1L);
     }
+
+    final Player finalNearest = nearest;
+    final long endTime = System.currentTimeMillis() + punishmentMillis;
+    deathTimes.put(player.getUniqueId(), endTime);
+
+    Bukkit.getScheduler().runTaskLater(this, () -> {
+        player.setGameMode(GameMode.SPECTATOR);
+        if (finalNearest != null) {
+            player.setSpectatorTarget(finalNearest);
+            player.sendMessage("§7Você morreu! Agora está assistindo §a" + finalNearest.getName() + "§7.");
+        } else {
+            player.sendMessage("§7Você morreu, mas não há jogadores vivos para assistir.");
+        }
+    }, 1L);
+}
+
 
     private void reviver(Player p) {
         deathTimes.remove(p.getUniqueId());
