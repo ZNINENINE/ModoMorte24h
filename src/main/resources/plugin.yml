@@ -1,8 +1,9 @@
 name: ModoMorte24h
 main: com.nin9.modomorte24h.ModoMorte24h
-version: 1.0
+version: 1.2
 api-version: 1.21
 commands:
-  trocar:
-    description: Troca o jogador observado no modo espectador.
-    usage: /trocar
+  trocarcamera:
+    description: Troca o jogador que você está assistindo.
+  reviver:
+    description: Revive um jogador manualmente (admin).

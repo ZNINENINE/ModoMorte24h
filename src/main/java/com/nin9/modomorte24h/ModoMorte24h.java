@@ -2,176 +2,189 @@ package com.nin9.modomorte24h;
 
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerLoginEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class ModoMorte24h extends JavaPlugin implements Listener {
 
-    private final Map<UUID, Long> deathTimestamps = new HashMap<>();
-    private final Map<UUID, UUID> spectatingTargets = new HashMap<>(); // store target UUID instead of Player
-    private static final long DEATH_DURATION_MS = 86_400_000L; // 24h
+    private final Map<UUID, Long> deathTimes = new HashMap<>();
+    private final Map<UUID, UUID> currentSpectating = new HashMap<>();
+    private long punishmentDuration;
 
     @Override
     public void onEnable() {
+        saveDefaultConfig();
+        FileConfiguration config = getConfig();
+        punishmentDuration = config.getLong("tempoPuniçãoHoras", 24) * 3600000;
+
         Bukkit.getPluginManager().registerEvents(this, this);
-        getLogger().info("ModoMorte24h habilitado!");
-    }
-
-    @Override
-    public void onDisable() {
-        getLogger().info("ModoMorte24h desabilitado!");
+        startReviveTask();
+        getLogger().info("ModoMorte24h v1.2 ativado!");
     }
 
     @EventHandler
-    public void onPlayerDeath(PlayerDeathEvent event) {
+    public void onDeath(PlayerDeathEvent event) {
         Player dead = event.getEntity();
-        UUID uuid = dead.getUniqueId();
+        deathTimes.put(dead.getUniqueId(), System.currentTimeMillis() + punishmentDuration);
 
-        // Slight delay to ensure death processing finished
-        Bukkit.getScheduler().runTaskLater(this, () -> {
-            dead.setGameMode(GameMode.SPECTATOR);
-            deathTimestamps.put(uuid, System.currentTimeMillis());
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!dead.isOnline()) return;
 
-            Player nearest = getNearestAlivePlayer(dead);
-            if (nearest != null) {
-                dead.setSpectatorTarget(nearest);
-                spectatingTargets.put(uuid, nearest.getUniqueId());
-                dead.sendMessage("§7Você morreu e está observando §e" + nearest.getName() + "§7.");
-                dead.sendMessage("§7Use §a/trocar§7 para mudar o alvo.");
-            } else {
-                dead.sendMessage("§cNenhum jogador vivo encontrado. Você permanecerá morto até que alguém entre.");
+                Player target = getNearestAlivePlayer(dead);
+                if (target == null) {
+                    dead.kickPlayer("Nenhum jogador vivo disponível para assistir.");
+                    return;
+                }
+
+                dead.setGameMode(GameMode.SPECTATOR);
+                dead.setSpectatorTarget(target);
+                currentSpectating.put(dead.getUniqueId(), target.getUniqueId());
+
+                String msg = getConfig().getString("mensagens.morte", "§7Você morreu! Agora está assistindo §a%player%§7 por %horas% horas.")
+                        .replace("%player%", target.getName())
+                        .replace("%horas%", String.valueOf(punishmentDuration / 3600000));
+                dead.sendMessage(msg);
+
+                startCountdown(dead);
             }
+        }.runTaskLater(this, 40L);
+    }
 
-            // Schedule auto-revive after 24 hours (in ticks)
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    if (dead.isOnline() && dead.getGameMode() == GameMode.SPECTATOR) {
-                        dead.setGameMode(GameMode.SURVIVAL);
-                        dead.teleport(dead.getWorld().getSpawnLocation());
-                        dead.sendMessage("§aVocê renasceu após 24 horas!");
+    @EventHandler
+    public void onCommand(PlayerCommandPreprocessEvent event) {
+        Player p = event.getPlayer();
+        if (!deathTimes.containsKey(p.getUniqueId())) return;
+        if (!event.getMessage().equalsIgnoreCase("/trocarcamera")) return;
+
+        event.setCancelled(true);
+        Player newTarget = getNextAlivePlayer(p);
+        if (newTarget == null) {
+            p.sendMessage("§cNenhum outro jogador vivo disponível para assistir.");
+            return;
+        }
+
+        p.setSpectatorTarget(newTarget);
+        currentSpectating.put(p.getUniqueId(), newTarget.getUniqueId());
+        p.sendMessage("§7Agora você está assistindo §a" + newTarget.getName() + ".");
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        Player p = event.getPlayer();
+        long expire = deathTimes.getOrDefault(p.getUniqueId(), 0L);
+        if (expire == 0) return;
+
+        if (System.currentTimeMillis() >= expire) {
+            revivePlayer(p);
+        } else {
+            p.setGameMode(GameMode.SPECTATOR);
+            startCountdown(p);
+        }
+    }
+
+    private void startReviveTask() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                for (UUID id : new ArrayList<>(deathTimes.keySet())) {
+                    Player p = Bukkit.getPlayer(id);
+                    if (p != null && System.currentTimeMillis() >= deathTimes.get(id)) {
+                        revivePlayer(p);
                     }
-                    deathTimestamps.remove(uuid);
-                    spectatingTargets.remove(uuid);
-                }
-            }.runTaskLater(this, 20L * 60 * 60 * 24);
-        }, 2L);
-    }
-
-    @EventHandler
-    public void onPlayerLogin(PlayerLoginEvent event) {
-        // If player is within penalty time, check if there is any alive player online
-        UUID uuid = event.getPlayer().getUniqueId();
-        if (deathTimestamps.containsKey(uuid)) {
-            long elapsed = System.currentTimeMillis() - deathTimestamps.get(uuid);
-            if (elapsed < DEATH_DURATION_MS) {
-                boolean hasAlive = Bukkit.getOnlinePlayers().stream()
-                        .anyMatch(p -> p.getGameMode() == GameMode.SURVIVAL && !p.getUniqueId().equals(uuid));
-                if (!hasAlive) {
-                    event.disallow(PlayerLoginEvent.Result.KICK_OTHER,
-                            "§cVocê ainda está morto e não há jogadores vivos online.\n§7Tente novamente mais tarde.");
                 }
             }
-        }
+        }.runTaskTimer(this, 1200L, 1200L); // a cada 60s
     }
 
-    @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        UUID uuid = player.getUniqueId();
+    private void revivePlayer(Player p) {
+        deathTimes.remove(p.getUniqueId());
+        currentSpectating.remove(p.getUniqueId());
+        p.setGameMode(GameMode.SURVIVAL);
+        World world = Bukkit.getWorlds().get(0);
+        Location spawn = world.getSpawnLocation();
+        p.teleport(spawn);
 
-        if (deathTimestamps.containsKey(uuid)) {
-            long elapsed = System.currentTimeMillis() - deathTimestamps.get(uuid);
-            if (elapsed < DEATH_DURATION_MS) {
-                player.setGameMode(GameMode.SPECTATOR);
-                Player nearest = getNearestAlivePlayer(player);
-                if (nearest != null) {
-                    player.setSpectatorTarget(nearest);
-                    player.sendMessage("§7Você ainda está morto. Observando §e" + nearest.getName() + "§7.");
-                } else {
-                    player.sendMessage("§cNenhum jogador vivo encontrado. Você ficará aguardando.");
+        String msg = getConfig().getString("mensagens.revive", "§aSua punição terminou! Você renasceu e pode jogar novamente.");
+        p.sendMessage(msg);
+    }
+
+    private void startCountdown(Player p) {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!deathTimes.containsKey(p.getUniqueId()) || !p.isOnline()) {
+                    cancel();
+                    return;
                 }
-            } else {
-                // Revive after punishment time
-                player.setGameMode(GameMode.SURVIVAL);
-                player.teleport(player.getWorld().getSpawnLocation());
-                player.sendMessage("§aVocê renasceu! Sua penalidade de morte acabou.");
-                deathTimestamps.remove(uuid);
-                spectatingTargets.remove(uuid);
+
+                long remaining = deathTimes.get(p.getUniqueId()) - System.currentTimeMillis();
+                if (remaining <= 0) {
+                    revivePlayer(p);
+                    cancel();
+                    return;
+                }
+
+                long hours = remaining / 3600000;
+                long minutes = (remaining % 3600000) / 60000;
+                long seconds = (remaining % 60000) / 1000;
+
+                p.sendActionBar("§eTempo restante para reviver: §c" + hours + "h " + minutes + "m " + seconds + "s");
             }
-        }
+        }.runTaskTimer(this, 0L, 100L);
     }
 
-    @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        if (!(sender instanceof Player)) return false;
-        Player p = (Player) sender;
+    private Player getNearestAlivePlayer(Player viewer) {
+        List<Player> players = Bukkit.getOnlinePlayers().stream()
+                .filter(p -> !p.equals(viewer) && p.getGameMode() != GameMode.SPECTATOR)
+                .collect(Collectors.toList());
 
-        if (label.equalsIgnoreCase("trocar")) {
-            if (p.getGameMode() != GameMode.SPECTATOR) {
-                p.sendMessage("§cVocê não está no modo espectador.");
-                return true;
-            }
+        if (players.isEmpty()) return null;
 
-            Player next = getNextAlivePlayer(p);
-            if (next == null) {
-                p.sendMessage("§cNenhum outro jogador vivo encontrado.");
-                return true;
-            }
-
-            p.setSpectatorTarget(next);
-            spectatingTargets.put(p.getUniqueId(), next.getUniqueId());
-            p.sendMessage("§7Agora observando §e" + next.getName() + "§7.");
-            return true;
-        }
-
-        return false;
-    }
-
-    private Player getNearestAlivePlayer(Player dead) {
         Player nearest = null;
-        double minDistSq = Double.MAX_VALUE;
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            if (p.equals(dead)) continue;
-            if (p.getGameMode() == GameMode.SURVIVAL) {
-                double distSq = p.getLocation().distanceSquared(dead.getLocation());
-                if (distSq < minDistSq) {
-                    minDistSq = distSq;
-                    nearest = p;
-                }
+        double dist = Double.MAX_VALUE;
+
+        for (Player target : players) {
+            double d = target.getLocation().distanceSquared(viewer.getLocation());
+            if (d < dist) {
+                dist = d;
+                nearest = target;
             }
         }
         return nearest;
     }
 
-    private Player getNextAlivePlayer(Player currentSpectator) {
-        List<Player> alive = new ArrayList<>();
-        for (Player p : Bukkit.getOnlinePlayers()) {
-            if (p.getGameMode() == GameMode.SURVIVAL) alive.add(p);
-        }
-        if (alive.isEmpty()) return null;
+    private Player getNextAlivePlayer(Player viewer) {
+        List<Player> players = Bukkit.getOnlinePlayers().stream()
+                .filter(p -> !p.equals(viewer) && p.getGameMode() != GameMode.SPECTATOR)
+                .sorted(Comparator.comparing(Player::getName))
+                .collect(Collectors.toList());
 
-        UUID currentTargetUuid = spectatingTargets.get(currentSpectator.getUniqueId());
+        if (players.isEmpty()) return null;
+
+        UUID current = currentSpectating.getOrDefault(viewer.getUniqueId(), null);
         int index = 0;
-        if (currentTargetUuid != null) {
-            for (int i = 0; i < alive.size(); i++) {
-                if (alive.get(i).getUniqueId().equals(currentTargetUuid)) {
-                    index = i + 1;
+
+        if (current != null) {
+            for (int i = 0; i < players.size(); i++) {
+                if (players.get(i).getUniqueId().equals(current)) {
+                    index = (i + 1) % players.size();
                     break;
                 }
             }
         }
-        if (index >= alive.size()) index = 0;
-        return alive.get(index);
+
+        return players.get(index);
     }
 }
