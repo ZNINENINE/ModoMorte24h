@@ -1,16 +1,12 @@
-# Tempo de punição em horas
 tempoPunicaoHoras: 24
 
 mensagens:
-  # Mensagem que aparece no action bar enquanto o jogador está punido
   tempoRestante: "&cRenascendo em &f%h%h %m%m"
-
-  # Mensagens de morte
   morteAssistindo: "&7Você morreu! Agora está assistindo &a%jogador%&7."
   morteSemAlvo: "&7Você morreu, mas não há jogadores vivos para assistir."
-  morteGlobal: "&c%jogador% morreu e ficará punido por %horas%h!"
-
-  # Mensagens de reviver
-  reviverAuto: "&aSua punição terminou! Você renasceu e pode jogar novamente."
-  reviverManual: "&aUm administrador decidiu reviver você antes do tempo!"
-  reviverGlobal: "&a%jogador% foi revivido e está de volta ao jogo!"
+  morteGlobal: "&c%jogador% &7morreu e ficará morto por &f%horas%h."
+  reviverAuto: "&aSua punição terminou! Você renasceu automaticamente."
+  reviverManual: "&aVocê foi revivido por um administrador."
+  reviverGlobal: "&a%jogador% &7foi revivido!"
+  bloqueioVisao: "&cVocê não pode trocar de visão enquanto estiver morto."
+  bloqueioComando: "&cVocê não pode usar comandos enquanto estiver morto."
