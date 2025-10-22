@@ -7,24 +7,25 @@
     <groupId>com.nin9</groupId>
     <artifactId>ModoMorte24h</artifactId>
     <version>1.2</version>
+    <packaging>jar</packaging>
+
     <name>ModoMorte24h</name>
-    <description>Plugin that forces dead players into spectator for 24 hours and restricts login if no alive players.</description>
+    <description>Plugin que coloca o jogador em modo espectador por tempo configurável após a morte</description>
 
     <properties>
+        <java.version>17</java.version>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
-         
+
     <repositories>
         <repository>
             <id>papermc-repo</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
-    </repositories>         
+    </repositories>
 
     <dependencies>
-        <!-- Paper API (provided at runtime by the server) -->
         <dependency>
             <groupId>io.papermc.paper</groupId>
             <artifactId>paper-api</artifactId>
